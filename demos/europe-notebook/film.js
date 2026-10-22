@@ -1,4 +1,4 @@
-// 欧洲手札 / Drawn Across Europe — 45 s hand-inked travel sketchbook, animated on twos, NO line boil.
+// 欧洲手札 / Drawn Across Europe — 69 s hand-inked travel sketchbook, animated on twos, NO line boil.
 // Grown from the approved 3 s sample (demos/europe-boil): same paper, pencil coastline, brush, Eiffel Tower, title and
 // calm motion. An ink line walks the 81 places in date order, one line per trip (the pen lifts between trips); at 22
 // hero stops it draws the landmark, colours
@@ -9,8 +9,9 @@ import { PAL, hs, hr, clamp, lerp, E, arclen, resample, prefix, circlePts, boil,
   from '/demos/05-cel-boil/js/engine.js';
 import { PLACES } from './places.js';
 import { L as LM } from './landmarks.js';
+import { HEROES, YEARS, T, HOLD3, stopCues, END, FPS, DUR } from './cues.js';
 
-const W = 1920, H = 1080, FPS = 24, DUR = 45;
+const W = 1920, H = 1080;
 window.DEMO = { width: W, height: H, fps: FPS, duration: DUR, motionBlur: { samples: 1, shutter: 0.5 } };
 
 // ---------- palette: six colours + paper, each also as a 50 % tint mixed with the paper ----------
@@ -21,58 +22,53 @@ for (const k of ['ink', 'red', 'yel', 'blue', 'green', 'sand']) {
   COL[k + 'T'] = `rgb(${a.map((v, i) => Math.round((v + b[i]) / 2)).join(',')})`;
 }
 const PENCIL = '#6b5446';
+// route + place-dot style. The landmarks carry the colour; the route and dots step back so the stops stand out.
+//   sepia (default): a warm sepia pencil line, dashed, hollow sepia rings for places, small sepia dots under the icons
+//   reddash: a muted red dashed line (classic travel-map look), hollow red rings
+//   ink: the first version (brown-black brush, solid ink dots)
+const RSTYLE = new URLSearchParams(location.search).get('rs') || 'sepia';
+const ROUTE_INK = { sepia: '#9c8572', reddash: '#c4604a', ink: '#4a3b33' }[RSTYLE];
+// lettering accents: the off-register shadow under hand-lettering, the brush underlines, the ring round the year.
+//   red: tomato red (first version) · terracotta: a muted brick red · sepia: warm brown, monochrome with the route
+//   blue: fountain-pen blue · navy: navy lettering with sandstone shadow and underline, navy ring
+const ACC = {
+  red: { text: '#1c1613', shadow: '#e5402b', line: '#e5402b', ring: '#e5402b' },
+  terracotta: { text: '#1c1613', shadow: '#c46a4e', line: '#b85a3e', ring: '#b85a3e' },
+  sepia: { text: '#2a211c', shadow: '#cfae8c', line: '#9c7a5c', ring: '#9c7a5c' },
+  blue: { text: '#1c1613', shadow: '#9dbbdb', line: '#3f7fb8', ring: '#3f7fb8' },
+  navy: { text: '#24365a', shadow: '#e2c393', line: '#c99a5a', ring: '#24365a' },
+}[new URLSearchParams(location.search).get('ac') || 'sepia'];         // chosen: warm sepia, the whole set
+const SEA = '#9dbbdb';                // the sea wash: a pale tint of the palette's sea blue
+// end-card wording (the dates sit underneath, so the years are not repeated)
+const END_CARD = {
+  a: ['29 国', '·', '81 站'],
+  b: ['15 次出发', '·', '29 国', '·', '81 站'],
+  c: ['29 个国家', '·', '81 处风景'],
+  d: ['一路走过', '29 国', '81 站'],
+  old: ['3 年', '·', '29 国', '·', '81 站'],
+  e: ['81 站', '·', '29 国'],
+  f: ['29 国', '·', '81 站', '·', '15 次启程'],
+  g: ['走过 29 国，', '停留 81 站'],
+  h: ['81 个地方，', '29 个国家'],
+  i: ['29 国 81 站，', '未完待续'],
+  j: ['81 站，', '还在继续'],
+}[new URLSearchParams(location.search).get('ec') || 'c'];            // chosen: 29 个国家 · 81 处风景
+const DOT_INK = { sepia: '#8f7663', reddash: '#c4604a', ink: '#1c1613' }[RSTYLE];
 const CN = '"LXGW Marker Gothic"', LAT = '"Caveat"';
 const PEN = { M: 4.6, S: 3.2, F: 1.9 }, SPEED = { M: 1, S: 1.5, F: 2.4 };
 
 // ---------- exposure sheet (frames @24): twos throughout, threes on the end hold ----------
-const HOLD3 = 984;                                       // 41.0 s: the end card is inked; from here on threes
 function exposed(f) { return f < HOLD3 ? f - (f % 2) : HOLD3 + Math.floor((f - HOLD3) / 3) * 3; }
 
-// ---------- cue sheet (seconds; audio.py reads the same numbers) ----------
-const HEROES = [
-  // [label, place, start, end, label line, drawing, { side of the label, camera move, zoom, height fraction, chain }]
-  ['巴黎', '巴黎', 2.0, 3.6, 'PARIS · 2022.10', 'paris', { side: 1, move: 'pan', z: 2.9 }],
-  ['尼斯', '尼斯', 3.6, 5.2, 'NICE · 2022.11', 'nice', { side: -1, move: 'pan', z: 2.5 }],
-  ['圣米歇尔山', '圣米歇尔山', 5.2, 6.8, 'MONT-SAINT-MICHEL · 2023.02', 'msm', { side: 1, move: 'tilt', z: 3.1 }],
-  ['风车村', '风车村', 6.8, 8.4, 'ZAANSE SCHANS · 2023.04', 'mill', { side: -1, move: 'push', z: 3.3 }],
-  ['库肯霍夫花园', '库肯霍夫花园', 8.4, 10.0, 'KEUKENHOF · 2023.04', 'tulips', { side: 1, move: 'pan', z: 3.3, chain: true, frac: 0.36 }],
-  ['少女峰', '少女峰', 10.0, 11.6, 'JUNGFRAU · 2023.04', 'jungfrau', { side: -1, move: 'tilt', z: 2.6, frac: 0.46 }],
-  ['布达佩斯', '布达佩斯', 11.6, 13.2, 'BUDAPEST · 2023.12', 'budapest', { side: 1, move: 'push', z: 2.9 }],
-  ['哈尔施塔特', '哈尔施塔特', 13.2, 14.8, 'HALLSTATT · 2023.12', 'hallstatt', { side: -1, move: 'pan', z: 3.2, frac: 0.5 }],
-  ['新天鹅堡', '施旺高', 14.8, 16.4, 'NEUSCHWANSTEIN · 2023.12', 'neusch', { side: 1, move: 'tilt', z: 3.2, chain: true }],
-  ['剑桥', '剑桥', 16.4, 18.0, 'CAMBRIDGE · 2024.03', 'cambridge', { side: -1, move: 'pan', z: 3.0 }],
-  ['伦敦', '伦敦', 18.0, 19.6, 'LONDON · 2024.03', 'london', { side: 1, move: 'tilt', z: 3.0, chain: true, frac: 0.44 }],
-  ['哥本哈根', '哥本哈根', 19.6, 21.2, 'COPENHAGEN · 2024.03', 'cph', { side: -1, move: 'push', z: 2.7, frac: 0.36 }],
-  ['斯德哥尔摩', '斯德哥尔摩', 21.2, 22.8, 'STOCKHOLM · 2024.03', 'stockholm', { side: 1, move: 'tilt', z: 2.8 }],
-  ['威尼斯', '威尼斯', 22.8, 24.4, 'VENICE · 2024.04', 'venice', { side: -1, move: 'pan', z: 2.6, frac: 0.4 }],
-  ['罗马', '罗马', 24.4, 26.0, 'ROME · 2024.04', 'rome', { side: 1, move: 'tilt', z: 2.6, chain: true }],
-  ['巴塞罗那', '巴塞罗那', 26.0, 27.6, 'BARCELONA · 2024.05', 'sagrada', { side: -1, move: 'tilt', z: 3.0, frac: 0.44 }],
-  ['格拉纳达', '格拉纳达', 27.6, 29.2, 'GRANADA · 2024.05', 'alhambra', { side: 1, move: 'push', z: 2.8, frac: 0.38 }],
-  ['杜布罗夫尼克', '杜布罗夫尼克', 29.2, 30.8, 'DUBROVNIK · 2025.05', 'dubrovnik', { side: -1, move: 'pan', z: 2.7, frac: 0.38 }],
-  ['卢森堡市', '卢森堡市', 30.8, 32.4, 'LUXEMBOURG · 2025.06', 'luxembourg', { side: 1, move: 'push', z: 3.0, frac: 0.4 }],
-  ['布朗镇', '布朗镇', 32.4, 34.0, 'BRAN · 2025.12', 'bran', { side: -1, move: 'tilt', z: 3.0 }],
-  ['奥斯维辛', '奥斯维辛', 34.0, 36.4, 'AUSCHWITZ · 2026.01', 'auschwitz', { side: 1, move: 'none', z: 2.8, frac: 0.36 }],
-  ['蒙达尔纪', '蒙达尔纪', 36.4, 38.2, 'MONTARGIS · 2026.01', 'montargis', { side: -1, move: 'pan', z: 2.8, frac: 0.34 }],
-];
-const YEARS = [[0.5, '2022'], [5.2, '2023'], [16.4, '2024'], [29.2, '2025'], [34.0, '2026']];
-const T = {
-  drop: [0, 0.3], coast: [0.17, 1.42], title: 0.25, sub: [0.83, 1.1], titleOut: [1.25, 1.55], year: [0.5, 0.85],
-  push: [1.08, 2.0], pull: [38.2, 41.0], yearOut: [39.4, 39.9], card: 40.2,
-};
 const inv = (a, b, x) => clamp((x - a) / (b - a));
 const prog = (r, t) => inv(r[0], r[1], t);
 const io = E.io3;
 const settle = (t, t0, d = 0.33) => { const u = inv(t0, t0 + d, t); return { a: E.out2(u), k: E.out3(u), on: u > 0 }; };
 
 // per-stop timing: arrive → draw (contour, structure, details) → colour washes up → label → one calm detail → leave
-const STOPS = HEROES.map(([zh, placeName, s, e, line, key, o], k) => {
-  const st = { k, zh, placeName, s, e, line, key, o, lm: LM[key] };
-  st.arrive = s + 0.3; st.draw = [s + 0.28, s + 1.0]; st.fill = [s + 0.82, s + 1.1]; st.label = s + 0.72; st.detail = s + 1.0;
-  st.leave = e - 0.45; st.shrink = [e - 0.25, e + 0.25]; st.labelOut = [e - 0.4, e - 0.12];
-  if (key === 'paris') { st.arrive = 0; st.draw = [1.5, 2.67]; st.fill = [2.25, 2.55]; st.label = 2.17; st.detail = 2.75; }
-  if (key === 'auschwitz') { st.draw = [34.3, 35.7]; st.fill = null; st.label = 35.25; st.detail = Infinity; st.shrink = [35.95, 36.55]; st.labelOut = [35.9, 36.25]; }
-  if (key === 'montargis') { st.leave = 38.2; st.shrink = [38.3, 38.9]; st.labelOut = [38.2, 38.5]; }
-  return st;
+const STOPS = HEROES.map((h, k) => {
+  const [zh, placeName, s, e, line, key, o] = h;
+  return { k, zh, placeName, s, e, line, key, o, lm: LM[key], ...stopCues(h) };
 });
 
 // ---------- svg path sampling ----------
@@ -110,6 +106,23 @@ const coast = rings.map((r) => {
   return { pts, L: Lc, dist: Math.hypot(cx - PARIS[0], cy - PARIS[1]), bb: [x0, y0, x1, y1] };
 }).filter((r) => r.L > 14);
 const maxDist = Math.max(...coast.map((r) => r.dist));
+// country borders: Natural Earth 1:50m admin-0, interior boundaries only; a lighter, dashed pencil on the same plate
+const countries = await (await fetch('/demos/europe-notebook/assets/countries-50m.json')).json();
+const borders = [];
+{
+  const raw = [];
+  let cur = null;
+  const sink = { moveTo(x, y) { cur = [[x, y]]; raw.push(cur); }, lineTo(x, y) { cur.push([x, y]); }, closePath() {}, arc() {} };
+  d3.geoPath(proj, sink)(topojson.mesh(countries, countries.objects.countries, (a, b) => a !== b));
+  for (const r of raw) {
+    const pts = boil(resample(r, 2.2), 9, 0.4, 18);
+    if (pts.length < 2) continue;
+    const Lb = arclen(pts).at(-1);
+    if (Lb < 6) continue;
+    let cx = 0, cy = 0; for (const p of pts) { cx += p[0]; cy += p[1]; } cx /= pts.length; cy /= pts.length;
+    borders.push({ pts, L: Lb, dist: Math.hypot(cx - PARIS[0], cy - PARIS[1]), bb: bbOf(pts) });
+  }
+}
 
 // ---------- places and the route (smooth arcs between places; drawn trip by trip) ----------
 const PL = PLACES.map(([date, zh, en, lat, lon, cc, trip], i) => ({ i, date, zh, en, cc, trip, w: proj([lon, lat]) }));
@@ -121,7 +134,7 @@ const SAT = [];            // route arclength at each place
   let acc = 0; ROUTE.push(stops[0]); SAT.push(0);
   for (let i = 1; i < stops.length; i++) {
     const a = stops[i - 1], b = stops[i], d = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    const sg = hs(i, 3) < 0.5 ? -1 : 1, bend = Math.min(0.2, 0.12 + 0.1 * hs(i, 4)) * sg;
+    const sg = hs(i, 3) < 0.5 ? -1 : 1, bend = (0.035 + 0.035 * hs(i, 4)) * sg;   // a gentle hand curve, not a bulge
     const c = [(a[0] + b[0]) / 2 - (b[1] - a[1]) * bend, (a[1] + b[1]) / 2 + (b[0] - a[0]) * bend];
     const n = Math.max(2, Math.ceil(d / 1.2));
     for (let k = 1; k <= n; k++) {
@@ -159,7 +172,7 @@ function headS(t) {
 }
 // time each place is reached
 for (const p of PL) {
-  let t = 0; while (t < 41 && headS(t) < SAT[p.i] - 1e-6) t += 1 / 480;
+  let t = 0; while (t < T.card && headS(t) < SAT[p.i] - 1e-6) t += 1 / 480;
   p.at = t;
 }
 
@@ -202,7 +215,7 @@ for (const st of STOPS) {
   const z = st.o.z, frac = st.o.frac ?? 0.42;
   st.z = z;
   st.sH = Math.min((frac * H) / (bh * z), (0.5 * W) / (bw * z));
-  st.sI = 58 / Math.max(bh, bw * 0.75);
+  st.ib = Math.max(bh, bw * 0.75);       // icon size is set in screen px per frame (see iconS)
   st.pin = st.o.pin || [0, 0];
   const cxL = st.dot[0] + ((x0 + x1) / 2) * st.sH, cyL = st.dot[1] + ((y0 + y1) / 2) * st.sH;
   st.cam = { z, c: [cxL + (st.o.side * 170) / z, cyL + 12 / z] };
@@ -263,6 +276,8 @@ function camera(t) {
   return drift(STOPS.at(-1), t);
 }
 let CAM = WIDE;
+const ICON_PX = 44;
+const iconS = (st) => ICON_PX / (st.ib * CAM.z);       // icons keep one size on screen at every zoom
 const scr = (p) => [(p[0] - CAM.c[0]) * CAM.z + W / 2, (p[1] - CAM.c[1]) * CAM.z + H / 2];
 
 // ---------- paper ----------
@@ -278,6 +293,65 @@ await document.fonts.load(`400 120px ${CN}`, ALLTEXT);
 await document.fonts.load(`400 30px ${LAT}`, 'DRAWN ACROSS EUROPE ' + HEROES.map((h) => h[4]).join(' '));
 await document.fonts.load(`700 30px ${LAT}`, 'ABC');
 await document.fonts.ready;
+// ---------- place names: laid out once, so they never jump between frames ----------
+// Tier A is placed at the end-card camera (the most zoomed-out view, where space is tightest) and shows at every zoom;
+// tier B is placed at 2.2× and fades in only once the camera is that close. Obstacles: dots, the icons standing on the
+// hero dots, the year ring and the end card. Text keeps one size on screen, so a layout that fits zoomed out still fits
+// zoomed in.
+const NAME_PX = 15, HERO_NAME_PX = 17;
+// zoomed out, only the hero stops and these well-known places are named; the rest appear when the camera is close
+const KNOWN = new Set(['阿姆斯特丹', '布鲁塞尔', '日内瓦', '布拉格', '维也纳', '汉堡', '奥斯陆', '赫尔辛基', '米兰', '佛罗伦萨', '比萨',
+  '马德里', '里斯本', '塞维利亚', '华沙', '克拉科夫', '布加勒斯特', '索菲亚', '贝尔格莱德', '萨格勒布', '萨尔茨堡', '摩纳哥城', '斯特拉斯堡']);
+const NAMES = [];
+{
+  const nameOf = (p) => (p.hero ? p.hero.zh : p.zh);
+  const sizeOf = (p) => (p.hero ? HERO_NAME_PX : NAME_PX);
+  const widthOf = (p) => { ctx.font = `400 ${sizeOf(p)}px ${CN}`; return [...nameOf(p)].reduce((a, ch) => a + ctx.measureText(ch).width * 1.02, 0); };
+  const hit = (a, b) => a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3];
+  const layout = (zc, cc, extra, accepted, onlyKnown = false) => {
+    const at = (w) => [(w[0] - cc[0]) * zc + W / 2, (w[1] - cc[1]) * zc + H / 2];
+    const obst = [...extra], icons = [];
+    for (const p of PL) {
+      const c = at(p.w);
+      obst.push([c[0] - 7, c[1] - 7, c[0] + 7, c[1] + 7]);
+      if (p.hero) icons.push({ i: p.i, tight: [c[0] - 30, c[1] - ICON_PX - 4, c[0] + 30, c[1] + 2], air: [c[0] - 36, c[1] - ICON_PX - 10, c[0] + 36, c[1] + 6] });
+    }
+    // other places' icons keep a margin of air around them; a hero's own icon only blocks its exact footprint
+    const iconHit = (sb, i) => icons.some((o) => hit(o.i === i ? o.tight : o.air, sb));
+    for (const n of accepted) { const c = at(PL[n.i].w); obst.push([c[0] + n.box[0], c[1] + n.box[1], c[0] + n.box[2], c[1] + n.box[3]]); }
+    const out = [];
+    // heroes first, then in visit order
+    const order = [...PL.filter((p) => p.hero), ...PL.filter((p) => !p.hero && (!onlyKnown || KNOWN.has(p.zh)))];
+    for (const p of order) {
+      if (accepted.some((n) => n.i === p.i)) continue;
+      const w = widthOf(p), sz = sizeOf(p), c = at(p.w);
+      let cands = p.hero
+        ? [[9, 7], [-9 - w, 7], [-w / 2, 27], [-w / 2, -ICON_PX - 9], [33, -ICON_PX / 2 + 7], [-33 - w, -ICON_PX / 2 + 7], [9, 27], [-9 - w, 27]]
+        : [[9, 7], [-9 - w, 7], [-w / 2, -12], [-w / 2, 26], [9, -9], [-9 - w, -9], [9, 23], [-9 - w, 23]];
+      if (p.hero?.key === 'auschwitz') cands = [[-9 - w, 7], [-9 - w, 24], ...cands];   // west of its dot: 克拉科夫 sits just east
+      for (const [dx, dy] of cands) {
+        const box = [dx - 2, dy - sz * 0.86, dx + w + 2, dy + sz * 0.22];
+        const sb = [c[0] + box[0], c[1] + box[1], c[0] + box[2], c[1] + box[3]];
+        if (sb[0] < 40 || sb[2] > W - 40 || sb[1] < 30 || sb[3] > H - 30) continue;
+        if (obst.some((o) => hit(o, sb)) || iconHit(sb, p.i)) continue;
+        obst.push(sb); out.push({ i: p.i, dx, dy, box, text: nameOf(p), size: sz, hero: !!p.hero });
+        break;
+      }
+    }
+    return out;
+  };
+  const endCard = [CARD[0] - 420, CARD[1] - 90, CARD[0] + 420, CARD[1] + 110], yearRing = [W - 280, 50, W - 60, 175];
+  const A = layout(FINAL.z, FINAL.c, [endCard, yearRing], [], true);
+  for (const n of A) NAMES.push({ ...n, tier: 0 });
+  // tier B: checked against tier A at 2.2× around every place (a conservative local test, same as the camera sees there)
+  const B = [];
+  for (const p of PL) {
+    if (A.some((n) => n.i === p.i) || B.some((n) => n.i === p.i)) continue;
+    const got = layout(2.2, p.w, [], [...A, ...B]).find((n) => n.i === p.i);
+    if (got) B.push(got);
+  }
+  for (const n of B) NAMES.push({ ...n, tier: 1 });
+}
 window.FONTS_OK = document.fonts.check(`400 64px ${CN}`, '欧洲手札') && document.fonts.check(`400 30px ${LAT}`, 'PARIS');
 
 // ---------- unit shapes with the wobble baked in ----------
@@ -412,13 +486,13 @@ function drawTulips(st, xf, tq, penK, unit) {
 
 // ---------- hand-lettering ----------
 function letter(ch, x, y, size, seed, o = {}) {
-  const { font = CN, weight = 400, shadow = true, alpha = 1, color = COL.ink, spacing = 0, align = 'left' } = o;
+  const { font = CN, weight = 400, shadow = true, alpha = 1, color = ACC.text, spacing = 0, align = 'left' } = o;
   ctx.save();
   ctx.globalAlpha = alpha; ctx.textAlign = align;
   ctx.font = `${weight} ${size}px ${font}`; ctx.letterSpacing = `${spacing}px`;
   ctx.translate(x + hr(-1.1, 1.1, seed, 1), y + hr(-1.1, 1.1, seed, 2));
   ctx.rotate(hr(-0.012, 0.012, seed, 3));
-  if (shadow) { ctx.fillStyle = COL.red; ctx.fillText(ch, size * 0.04, size * 0.04); }
+  if (shadow) { ctx.fillStyle = ACC.shadow; ctx.fillText(ch, size * 0.04, size * 0.04); }
   ctx.fillStyle = color; ctx.fillText(ch, 0, 0);
   ctx.restore();
 }
@@ -452,6 +526,19 @@ function screenBB(st, s, anchor) {
   return [a[0], a[1], b[0], b[1]];
 }
 
+// a place dot: the current place is a small red dot; hero places a small filled dot under their icon; the rest hollow rings
+function drawDot(p, q, dr, isCur, aus) {
+  if (RSTYLE === 'ink') {
+    fillPoly(ctx, place(DOTS[p.i], q, dr * (p.hero ? 1.15 : 1)), aus ? PENCIL : COL.ink);
+    if (isCur && !aus) fillPoly(ctx, place(CORE, [q[0] + 0.6, q[1] - 0.6], dr * 0.5), COL.red);
+    return;
+  }
+  const r = dr * 0.68;
+  if (isCur && !aus) { fillPoly(ctx, place(DOTS[p.i], q, r * 1.2), COL.red); return; }
+  if (p.hero) { fillPoly(ctx, place(DOTS[p.i], q, r * 0.85), aus ? PENCIL : DOT_INK); return; }
+  ring(place(DOTS[p.i], q, r), 1.3, { seed: 600 + p.i, color: DOT_INK, t0: 1, t1: 1, min: 0.8, heavy: 0 });
+}
+
 // ---------- the frame ----------
 window.renderAt = async (t) => {
   const f = Math.min(DUR * FPS - 1, Math.floor(t * FPS + 1e-6));
@@ -463,11 +550,26 @@ window.renderAt = async (t) => {
   ctx.fillStyle = COL.paper; ctx.fillRect(0, 0, W, H);
   ctx.globalAlpha = 0.55; ctx.drawImage(PAPER, 0, 0, W, H); ctx.globalAlpha = 1;
 
-  // coastline: soft pencil on the background plate, draws on outward from Paris during the opening, then holds
+  // the sea: a pale watercolour wash over everything that is not land, washing in with the coastline, then still
   const cu = prog(T.coast, tq);
+  const vx0 = CAM.c[0] - W / 2 / z - 20, vx1 = CAM.c[0] + W / 2 / z + 20, vy0 = CAM.c[1] - H / 2 / z - 20, vy1 = CAM.c[1] + H / 2 / z + 20;
+  const seaA = io(clamp((cu - 0.2) / 0.8));
+  if (seaA > 0) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, 0, W, H);
+    for (const r of coast) {
+      if (r.bb[2] < vx0 || r.bb[0] > vx1 || r.bb[3] < vy0 || r.bb[1] > vy1) continue;
+      let p = scr(r.pts[0]); ctx.moveTo(p[0], p[1]);
+      for (let i = 1; i < r.pts.length; i++) { p = scr(r.pts[i]); ctx.lineTo(p[0], p[1]); }
+      ctx.closePath();
+    }
+    ctx.globalAlpha = 0.34 * seaA; ctx.fillStyle = SEA; ctx.fill('evenodd');
+    ctx.restore();
+  }
+
+  // coastline: soft pencil on the background plate, draws on outward from Paris during the opening, then holds
   ctx.save();
   ctx.strokeStyle = PENCIL; ctx.globalAlpha = 0.34; ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  const vx0 = CAM.c[0] - W / 2 / z - 20, vx1 = CAM.c[0] + W / 2 / z + 20, vy0 = CAM.c[1] - H / 2 / z - 20, vy1 = CAM.c[1] + H / 2 / z + 20;
   for (const r of coast) {
     if (r.bb[2] < vx0 || r.bb[0] > vx1 || r.bb[3] < vy0 || r.bb[1] > vy1) continue;
     const u = io(clamp((cu - (r.dist / maxDist) * 0.55) / 0.45));
@@ -478,6 +580,19 @@ window.renderAt = async (t) => {
     for (let i = 1; i < pts.length; i++) { p = scr(pts[i]); ctx.lineTo(p[0], p[1]); }
     ctx.stroke();
   }
+  // borders: dash length fixed in world units so the dashes stay put on the map while the camera moves
+  ctx.globalAlpha = 0.52; ctx.lineWidth = 1.5; ctx.setLineDash([6 * z, 3.5 * z]); ctx.lineDashOffset = 0;
+  for (const r of borders) {
+    if (r.bb[2] < vx0 || r.bb[0] > vx1 || r.bb[3] < vy0 || r.bb[1] > vy1) continue;
+    const u = io(clamp((cu - (r.dist / maxDist) * 0.55) / 0.45));
+    if (u <= 0) continue;
+    const pts = (u < 1 ? prefix(r.pts, u) : r.pts);
+    ctx.beginPath();
+    let p = scr(pts[0]); ctx.moveTo(p[0], p[1]);
+    for (let i = 1; i < pts.length; i++) { p = scr(pts[i]); ctx.lineTo(p[0], p[1]); }
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
   ctx.restore();
 
   // ---- the ink blot on Paris (the hook) ----
@@ -485,10 +600,14 @@ window.renderAt = async (t) => {
   const du = E.out3(prog(T.drop, tq));
   if (du > 0) {
     const r = 9.5 * Math.min(1.25, Math.sqrt(z)) * du;
-    fillPoly(ctx, place(BLOT, P0, r), COL.ink);
-    for (let i = 0; i < 2; i++) {
+    const blotA = 1 - prog(STOPS[0].shrink, tq);        // the opening blot gives way to an ordinary dot once Paris is an icon
+    if (blotA > 0) { ctx.save(); ctx.globalAlpha = blotA; fillPoly(ctx, place(BLOT, P0, r), COL.ink); ctx.restore(); }
+    const spA = 1 - prog(T.titleOut, tq);          // the two ink specks belong to the opening only
+    for (let i = 0; i < 2 && spA > 0; i++) {
       const a = 0.9 + i * 2.6, d = 24 + i * 9;
+      ctx.save(); ctx.globalAlpha = spA;
       fillPoly(ctx, place(SPECK, scr([PARIS[0] + Math.cos(a) * d, PARIS[1] + Math.sin(a) * d]), (1.5 + i * 0.6) * Math.min(1.6, Math.sqrt(z)) * du), COL.ink);
+      ctx.restore();
     }
     const ru = inv(0.08, 0.75, tq);
     if (ru > 0 && ru < 1) { ctx.save(); ctx.globalAlpha = 0.7 * (1 - ru); ring(place(RIPPLE, P0, (14 + 60 * E.out2(ru)) * Math.sqrt(z)), 1.8); ctx.restore(); }
@@ -508,13 +627,21 @@ window.renderAt = async (t) => {
     if (tr.s1 <= tr.s0 || hs_ <= tr.s0 + 0.5) continue;
     const end = Math.min(hs_, tr.s1), drawing = moving && hs_ < tr.s1;
     const pts = routeRange(tr.s0, end).map(scr);
-    brush(pts, clamp(2.5 * Math.pow(z, 0.45), 2.5, 4.6), { seed: 41 + tr.id, unit: z, t0: 6, t1: drawing ? 26 : 8, min: 0.3 });
-    if (drawing) fillPoly(ctx, place(SPECK, pts.at(-1), 3.4), COL.ink);
+    if (RSTYLE === 'reddash') {
+      ctx.save(); ctx.strokeStyle = ROUTE_INK; ctx.globalAlpha = 0.8; ctx.lineWidth = clamp(1.4 * Math.pow(z, 0.35), 1.4, 2.4);
+      ctx.lineCap = 'round'; ctx.setLineDash([7 * z, 5 * z]);
+      ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.stroke(); ctx.restore();
+    } else if (RSTYLE === 'sepia') {            // sepia pencil, dashed; dash length fixed in world units so it never crawls
+      ctx.save(); ctx.strokeStyle = ROUTE_INK; ctx.globalAlpha = 0.9; ctx.lineWidth = clamp(1.5 * Math.pow(z, 0.35), 1.5, 2.5);
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.setLineDash([6 * z, 4.5 * z]); ctx.lineDashOffset = 0;
+      ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.stroke(); ctx.restore();
+    } else brush(pts, clamp(1.7 * Math.pow(z, 0.4), 1.7, 3.0), { seed: 41 + tr.id, unit: z, t0: 6, t1: drawing ? 26 : 8, min: 0.35, color: ROUTE_INK });
+    if (drawing) fillPoly(ctx, place(SPECK, pts.at(-1), RSTYLE === 'ink' ? 3.4 : 2.6), RSTYLE === 'ink' ? COL.ink : ROUTE_INK);
   }
 
   // ---- place dots: ink in (fade + a 3 px settle) as the line reaches them; the current place has a red core ----
   let cur = -1;
-  for (const p of PL) if (tq >= p.at && p.at < 41) cur = p.i;
+  for (const p of PL) if (tq >= p.at && p.at < T.card) cur = p.i;
   if (tq >= T.pull[0] + 0.1) cur = -1;
   const dr = 5.2 * clamp(Math.pow(z, 0.32), 1, 1.5);
   for (const p of PL) {
@@ -523,9 +650,20 @@ window.renderAt = async (t) => {
     const c = scr(p.w), aus = p.hero?.key === 'auschwitz';
     ctx.save(); ctx.globalAlpha = sd.a * (aus ? 0.55 : 1);
     const q = [c[0], c[1] - 3 * (1 - sd.k)];
-    fillPoly(ctx, place(DOTS[p.i], q, dr * (p.hero ? 1.15 : 1)), aus ? PENCIL : COL.ink);
-    if (p.i === cur && !aus) fillPoly(ctx, place(CORE, [q[0] + 0.6, q[1] - 0.6], dr * 0.5), COL.red);
+    drawDot(p, q, dr, p.i === cur, aus);
     ctx.restore();
+  }
+
+  // ---- place names: small pencil lettering beside the dots (hero names in ink once their big label has gone) ----
+  const tierB = sstep(1.9, 2.4, z);
+  for (const n of NAMES) {
+    const p = PL[n.i];
+    let a = settle(tq, p.at + 0.1, 0.35).a;
+    if (p.hero) a = settle(tq, p.hero.labelOut[1], 0.35).a;
+    if (n.tier) a *= tierB;
+    if (a <= 0.01) continue;
+    const c = scr(p.w), aus = p.hero?.key === 'auschwitz';      // its name in grey pencil, like its drawing
+    word(n.text, c[0] + n.dx, c[1] + n.dy, n.size, 2000 + n.i * 3, { shadow: false, alpha: a * (n.hero && !aus ? 0.9 : 0.72), color: n.hero && !aus ? COL.ink : PENCIL });
   }
 
   // ---- landmarks: icons on the layer; then the page clears softly around the active stop; then the active stop ----
@@ -537,7 +675,7 @@ window.renderAt = async (t) => {
       if (actVis > 0) {
         LAYER.save();
         LAYER.globalCompositeOperation = 'destination-out'; LAYER.globalAlpha = 0.86 * actVis; LAYER.filter = 'blur(14px)'; LAYER.fillStyle = '#000';
-        const su0 = io(prog(st.shrink, tq)), s0 = Math.exp(lerp(Math.log(st.sH), Math.log(st.sI), su0));
+        const su0 = io(prog(st.shrink, tq)), s0 = Math.exp(lerp(Math.log(st.sH), Math.log(iconS(st)), su0));
         const bb = screenBB(st, s0, [st.dot[0] + st.pin[0] * su0, st.dot[1] + st.pin[1] * su0]);
         LAYER.beginPath(); LAYER.roundRect(bb[0] - 26, bb[1] - 26, bb[2] - bb[0] + 52, bb[3] - bb[1] + 40, 30); LAYER.fill();
         if (tq >= st.label && tq < st.labelOut[1]) { const lb = labelBox(st).box; LAYER.globalAlpha = 0.86 * actVis * (1 - prog(st.labelOut, tq)); LAYER.beginPath(); LAYER.roundRect(lb[0], lb[1], lb[2] - lb[0], lb[3] - lb[1], 24); LAYER.fill(); }
@@ -547,18 +685,21 @@ window.renderAt = async (t) => {
       MAIN.drawImage(layerCv, 0, 0);
       const p = PL[st.pi], c = scr(p.w), aus = st.key === 'auschwitz';
       ctx.save(); ctx.globalAlpha = aus ? 0.55 : 1;
-      fillPoly(ctx, place(DOTS[p.i], c, dr * 1.15), aus ? PENCIL : COL.ink);
-      if (p.i === cur && !aus) fillPoly(ctx, place(CORE, [c[0] + 0.6, c[1] - 0.6], dr * 0.5), COL.red);
+      drawDot(p, c, dr, p.i === cur, aus);
       ctx.restore();
     }
     const su = io(prog(st.shrink, tq));
-    if (st.key === 'auschwitz' && su >= 1) continue;
-    const s = st.key === 'auschwitz' ? st.sH : Math.exp(lerp(Math.log(st.sH), Math.log(st.sI), su));
+    // 奥斯维辛 stays on the map too, but only as a grey pencil drawing, a little fainter than the rest
+    const s = Math.exp(lerp(Math.log(st.sH), Math.log(iconS(st)), su));
     const anchor = [st.dot[0] + st.pin[0] * su, st.dot[1] + st.pin[1] * su];
     const tu = io(prog(st.draw, tq)), fu = st.fill ? E.out3(prog(st.fill, tq)) : 0;
     const tl = Math.min(tq, st.shrink[0]) - st.draw[0];
-    let alpha = st.key === 'auschwitz' ? 1 - su : 1;
+    let alpha = st.key === 'auschwitz' ? 1 - 0.3 * su : 1;
     if (st !== active && active && actVis > 0) alpha *= 1 - 0.75 * actVis * overlapK(st, s, anchor, active);
+    if (st !== active && active && actVis > 0 && tq >= active.label && tq < active.labelOut[1]) {   // and under its label
+      const lb = labelBox(active).box, ib = screenBB(st, s, anchor);
+      if (ib[0] < lb[2] && lb[0] < ib[2] && ib[1] < lb[3] && lb[1] < ib[3]) alpha *= 1 - 0.8 * actVis;
+    }
     if (st.pin[0] || st.pin[1]) {               // a fine leader from the dot to the pinned icon
       ctx.save(); ctx.globalAlpha = su * alpha * 0.8;
       brush([scr(st.dot), scr(anchor)], 1.3, { seed: 77 + st.k, t0: 2, t1: 2, min: 0.6 });
@@ -605,7 +746,7 @@ window.renderAt = async (t) => {
     word(st.zh, xl, y, size, 1000 + st.k * 17, { alpha: a, shadow: !grey, color: grey ? PENCIL : COL.ink });
     if (!grey) {
       const uu = inv(st.label + 0.08, st.label + 0.4, tq);
-      if (uu > 0) { ctx.save(); ctx.globalAlpha = out; brush(prefix([[xl - 4, y + 20], [xl + tw / 2, y + 23], [xl + tw + 4, y + 18]], E.out3(uu)), 3.6, { seed: 1200 + st.k, color: COL.red, t0: 6, t1: 20 }); ctx.restore(); }
+      if (uu > 0) { ctx.save(); ctx.globalAlpha = out; brush(prefix([[xl - 4, y + 20], [xl + tw / 2, y + 23], [xl + tw + 4, y + 18]], E.out3(uu)), 3.6, { seed: 1200 + st.k, color: ACC.line, t0: 6, t1: 20 }); ctx.restore(); }
     }
     const sb = settle(tq, st.label + 0.22);
     if (sb.on) letter(st.line, side > 0 ? xl : xl + tw, y + 58, 30, 1300 + st.k, { font: LAT, shadow: false, alpha: (grey ? 0.6 : 0.8) * sb.a * out, spacing: 3, align: side > 0 ? 'left' : 'right', color: grey ? PENCIL : COL.ink });
@@ -622,7 +763,7 @@ window.renderAt = async (t) => {
     const uu = prog(T.sub, tq);
     if (uu > 0) {
       ctx.save(); ctx.globalAlpha = ta;
-      brush(prefix(resample([[x0, y0 + 34], [x0 + 260, y0 + 38], [x0 + 520, y0 + 31]], 4), E.out3(uu)), 4.2, { seed: 309, color: COL.red, t0: 8, t1: 40 });
+      brush(prefix(resample([[x0, y0 + 34], [x0 + 260, y0 + 38], [x0 + 520, y0 + 31]], 4), E.out3(uu)), 4.2, { seed: 309, color: ACC.line, t0: 8, t1: 40 });
       ctx.restore();
       letter('DRAWN ACROSS EUROPE', x0 + 4, y0 + 88, 36, 313, { font: LAT, weight: 600, shadow: false, alpha: ta * E.out2(uu), spacing: 8 });
     }
@@ -634,7 +775,7 @@ window.renderAt = async (t) => {
     const cx = W - 170, cy = 112;
     const rg = circlePts(cx, cy, 44, 64, 96);
     ctx.save(); ctx.globalAlpha = yOut;
-    brush(prefix([...rg, rg[0], rg[1], rg[2]], E.out3(yu)), 3.4, { seed: 121, color: COL.red, t0: 6, t1: 14 });
+    brush(prefix([...rg, rg[0], rg[1], rg[2]], E.out3(yu)), 3.4, { seed: 121, color: ACC.ring, t0: 6, t1: 14 });
     ctx.restore();
     for (let i = 0; i < YEARS.length; i++) {
       const [ty, label] = YEARS[i];
@@ -649,17 +790,22 @@ window.renderAt = async (t) => {
   const ec = settle(tq, T.card, 0.4);
   if (ec.on) {
     const cx = CARD[0], cy = CARD[1];
-    const parts = ['3 年', '·', '29 国', '·', '81 站'];
+    const parts = END_CARD;
     ctx.font = `400 84px ${CN}`;
-    const gap = 30, ws = parts.map((p) => ctx.measureText(p).width), tot = ws.reduce((a, b) => a + b, 0) + gap * (parts.length - 1);
+    let ws = parts.map((p) => ctx.measureText(p).width), tot = ws.reduce((a, b) => a + b, 0) + 30 * (parts.length - 1);
+    const fs = Math.min(84, (84 * 720) / tot);            // fit the card column
+    ctx.font = `400 ${fs}px ${CN}`;
+    const gap = 30 * fs / 84;
+    const gapAfter = (p) => (p.endsWith('，') ? 0 : gap);   // a full-width comma already carries its own space
+    ws = parts.map((p) => ctx.measureText(p).width); tot = ws.reduce((a, b) => a + b, 0) + parts.slice(0, -1).reduce((a, p) => a + gapAfter(p), 0);
     let x = cx - tot / 2;
     parts.forEach((p, i) => {
       const s = settle(tq, T.card + i * (3 / 24), 0.33);
-      if (s.on) letter(p, x, cy + 6 * (1 - s.k), 84, 1500 + i * 7, { alpha: s.a, shadow: p !== '·' });
-      x += ws[i] + gap;
+      if (s.on) letter(p, x, cy + 6 * (1 - s.k), fs, 1500 + i * 7, { alpha: s.a, shadow: p !== '·' });
+      x += ws[i] + gapAfter(p);
     });
     const uu = inv(T.card + 0.5, T.card + 0.9, tq);
-    if (uu > 0) brush(prefix(resample([[cx - tot / 2 - 10, cy + 30], [cx, cy + 35], [cx + tot / 2 + 10, cy + 28]], 4), E.out3(uu)), 4.4, { seed: 1600, color: COL.red, t0: 8, t1: 30 });
+    if (uu > 0) brush(prefix(resample([[cx - tot / 2 - 10, cy + 30], [cx, cy + 35], [cx + tot / 2 + 10, cy + 28]], 4), E.out3(uu)), 4.4, { seed: 1600, color: ACC.line, t0: 8, t1: 30 });
     const sb = settle(tq, T.card + 0.7, 0.33);
     if (sb.on) word('2022.10 — 2026.01', cx, cy + 84, 40, 1700, { shadow: false, alpha: 0.85 * sb.a, align: 'center' });
   }

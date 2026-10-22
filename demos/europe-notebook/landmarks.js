@@ -1,4 +1,4 @@
-// 欧洲手札 — the 22 landmark drawings, in local units: base centre (0,0) sits on the city dot, y up is negative.
+// 欧洲手札 — the 24 landmark drawings, in local units: base centre (0,0) sits on the city dot, y up is negative.
 // Each drawing is a list of pen strokes (SVG path data) in illustrator order — contour (pen M), structure (S), details (F) —
 // plus flat colour fills, red-pencil shade regions and at most one small calm motion (`parts`, `ripple`, `star`, `custom`).
 // stroke: [d, pen, opts]   opts: { g: layer, part, alpha, speed }
@@ -50,32 +50,39 @@ export const L = {};
   };
 }
 
-// ---------------------------------------------------------------- 尼斯 · Promenade des Anglais, the Baie des Anges
+// ---------------------------------------------------------------- 尼斯 · Hotel Negresco's pink dome on the Promenade des Anglais
+// The hotel's corner rotunda (dome ≈ 1/3 of the façade height) with its lantern, the Belle Époque façade running right,
+// a palm, the famous blue chairs on the promenade and the Baie des Anges in front.
 {
-  const shore = 'M -262 -60 C -60 -60 80 -100 150 -170 C 165 -186 175 -194 186 -200';
-  const prom = 'M -262 -20 C -60 -22 100 -64 196 -168';
-  const hill = 'M 128 -200 C 150 -236 185 -262 215 -262 C 240 -262 256 -246 264 -232';
-  const parasols = [[-214, -26, 1.0], [-140, -30, 0.92], [-66, -38, 0.82], [4, -52, 0.72], [64, -72, 0.6]];
-  const strokes = [
-    ['M -262 0 L 262 0', 'M'], [prom, 'M'], [shore, 'M'], ['M -262 -200 L 150 -200', 'S'], [hill, 'S'],
-    ['M 205 0 C 210 -60 202 -120 214 -170', 'S'],
-  ];
-  const fills = [['M -262 -200 L 186 -200 C 175 -194 165 -186 150 -170 C 80 -100 -60 -60 -262 -60 Z', 'blue']];
-  for (const [x, y, s] of parasols) {
-    const top = y - 44 * s, r = 27 * s;
-    const canopy = `M ${f(x - r)} ${f(top)} C ${f(x - r * 0.8)} ${f(top - 18 * s)} ${f(x + r * 0.8)} ${f(top - 18 * s)} ${f(x + r)} ${f(top)}`;
-    const hem = `M ${f(x + r)} ${f(top)} Q ${f(x + r * 0.5)} ${f(top + 5 * s)} ${x} ${f(top)} Q ${f(x - r * 0.5)} ${f(top + 5 * s)} ${f(x - r)} ${f(top)}`;
-    strokes.push([canopy + ' ' + hem.replace(/^M [^Q]+/, ''), 'S'], [`M ${x} ${f(top - 13 * s)} L ${x} ${y}`, 'F']);
-    fills.push([canopy + ' ' + hem.replace(/^M [^Q]+/, '') + ' Z', 'red']);
+  const strokes = [['M -282 0 L 282 0', 'M'], ['M -282 -26 L 282 -26', 'S']];
+  // rotunda: cylinder, dome, lantern
+  const tower = 'M -120 -26 L -120 -232 M -40 -232 L -40 -26';
+  const dome = 'M -128 -232 C -128 -318 -32 -318 -32 -232 Z';
+  strokes.push([tower, 'M'], ['M -128 -232 L -32 -232', 'S'], [dome, 'M'],
+    ['M -88 -296 L -88 -322 L -72 -322 L -72 -296 M -92 -322 C -92 -336 -68 -336 -68 -322 M -80 -336 L -80 -352', 'S'],
+    ['M -124 -246 L -36 -246', 'F']);
+  for (const x of [-108, -88, -68]) for (const y of [-80, -130, -180]) strokes.push([`M ${x - 7} ${y} L ${x - 7} ${y - 26} Q ${x} ${y - 34} ${x + 7} ${y - 26} L ${x + 7} ${y}`, 'F', { speed: 4 }]);
+  // façade running right, with a cornice and a mansard roof line
+  strokes.push(['M -40 -200 L 230 -200 L 230 -26', 'M'], ['M -40 -214 L 236 -214', 'S'], ['M -30 -214 L -18 -238 L 222 -238 L 236 -214', 'S']);
+  for (let x = -20; x <= 210; x += 26) {
+    for (const y of [-64, -112, -160]) strokes.push([`M ${x} ${y} L ${x} ${y - 24} L ${x + 12} ${y - 24} L ${x + 12} ${y}`, 'F', { speed: 5 }]);
+    strokes.push([`M ${x - 3} -60 L ${x + 15} -60`, 'F', { speed: 6 }]);
   }
-  strokes.push(
-    ['M 214 -170 C 186 -186 164 -178 150 -154', 'F'], ['M 214 -170 C 238 -190 258 -184 270 -166', 'F'],
-    ['M 214 -170 C 200 -200 182 -208 166 -204', 'F'], ['M 214 -170 C 232 -204 250 -210 262 -204', 'F'],
-    [wave(-200, -150, 2, 9), 'F'], [wave(-60, -170, 2, 8), 'F'], [wave(60, -186, 2, 6), 'F'], [wave(-230, -96, 2, 8), 'F'], [wave(-100, -110, 2, 8), 'F'],
-    ['M -262 -20 L 262 -20', 'F'],
-  );
-  for (let x = -250; x <= 250; x += 20) strokes.push([`M ${x} -20 L ${x} 0`, 'F', { speed: 4 }]);
-  L.nice = { strokes, fills, shade: [[hill + ' L 264 -200 L 128 -200 Z']], ripple: [-150, -130, 0.7] };
+  for (let x = 0; x <= 200; x += 52) strokes.push([`M ${x} -238 l 0 -10 l 12 0 l 0 10`, 'F', { speed: 5 }]);
+  // palm (left), the blue chairs
+  const trunk = 'M -214 -26 C -212 -110 -206 -190 -196 -262';
+  strokes.push([trunk, 'S'], ['M -196 -262 C -226 -280 -250 -270 -262 -246', 'F'], ['M -196 -262 C -170 -284 -146 -276 -132 -252', 'F'],
+    ['M -196 -262 C -214 -296 -236 -304 -252 -298', 'F'], ['M -196 -262 C -182 -300 -160 -308 -146 -302', 'F'], ['M -196 -262 C -200 -290 -196 -312 -186 -324', 'F']);
+  const fronds = 'M -196 -262 C -226 -280 -250 -270 -262 -246 C -236 -262 -214 -262 -196 -262 C -170 -284 -146 -276 -132 -252 C -156 -266 -180 -266 -196 -262 Z';
+  const chairs = [-6, 44, 94, 144];
+  const fills = [[dome, 'redT'], ['M -282 0 L 282 0 L 282 34 L -282 34 Z', 'blue', { g: 1 }], [fronds, 'greenT']];
+  for (const x of chairs) {
+    const c = `M ${x} -26 L ${x + 4} -46 L ${x + 26} -46 L ${x + 30} -26 M ${x + 4} -46 L ${x + 2} -66`;
+    strokes.push([c, 'F', { g: 1 }]);
+    fills.push([`M ${x + 4} -46 L ${x + 26} -46 L ${x + 28} -38 L ${x + 2} -38 Z`, 'blue', { g: 1 }], [`M ${x + 2} -66 L ${x + 6} -66 L ${x + 6} -46 L ${x + 3} -46 Z`, 'blue', { g: 1 }]);
+  }
+  strokes.push([wave(-240, 16, 2, 9), 'F', { g: 1 }], [wave(-40, 22, 2, 9), 'F', { g: 1 }], [wave(170, 14, 2, 9), 'F', { g: 1 }]);
+  L.nice = { strokes, fills, shade: [['M -80 -26 L -40 -26 L -40 -232 L -80 -232 Z'], [rect(150, -26, 230, -200)]], ripple: [60, 18, 0.6] };
 }
 
 // ---------------------------------------------------------------- 圣米歇尔山 · Mont-Saint-Michel at high tide
@@ -373,51 +380,70 @@ export const L = {};
   };
 }
 
-// ---------------------------------------------------------------- 威尼斯 · a gondola gliding down a canal
+// ---------------------------------------------------------------- 威尼斯 · the Rialto Bridge, a gondola passing under it
+// One stone arch (span ≈ 28 m, rise ≈ 7.5 m), two ramps of shops under sloping roofs, the central portico with its gable.
 {
+  const deckY = (x) => (Math.abs(x) <= 40 ? -122 : -122 + ((Math.abs(x) - 40) / 210) * 72);   // the stepped ramps
   const strokes = [
-    ['M -282 10 L -24 -150', 'M'], ['M 282 10 L 104 -150', 'M'], ['M -282 -310 L -24 -236', 'M'], ['M 282 -296 L 104 -232', 'M'],
-    ['M -24 -236 L -24 -150 M 104 -232 L 104 -150', 'S'], ['M -180 -281 L -180 -54 M -96 -257 L -96 -105 M 200 -266 L 200 -64 M 150 -248 L 150 -108', 'S'],
-    ['M -36 -150 Q 40 -200 116 -150', 'S'], ['M -36 -164 Q 40 -214 116 -164', 'F'],
+    ['M -282 0 L 282 0', 'M'],
+    ['M -150 0 C -122 -112 122 -112 150 0', 'M'],                                 // the arch
+    ['M -250 0 L -250 -50 L -40 -122 L 40 -122 L 250 -50 L 250 0', 'M'],         // deck line + abutments
+    ['M -250 -50 L -250 -82 L -40 -154 M 40 -154 L 250 -82 L 250 -50', 'S'],     // shop roofs
+    ['M -40 -122 L -40 -176 L 40 -176 L 40 -122', 'M'], ['M -50 -176 L 0 -206 L 50 -176 Z', 'S'],   // portico + gable
+    ['M -16 -122 L -16 -150 Q 0 -168 16 -150 L 16 -122', 'S'],
+    ['M -170 -14 C -140 -86 140 -86 170 -14', 'F'],                               // the arch ring
   ];
-  for (const [x0, x1, yb, yt] of [[-262, -244, -150, -250], [-226, -208, -150, -240], [-160, -146, -120, -222], [-134, -120, -132, -214], [-80, -68, -150, -206], [-56, -46, -158, -200],
-    [182, 196, -110, -226], [214, 230, -96, -232], [244, 262, -80, -240], [126, 138, -136, -214], [160, 172, -124, -220]]) strokes.push([arch(x0, x1, yb, yt), 'F', { speed: 4 }]);
-  strokes.push(['M -282 -120 L -180 -96 M 282 -110 L 200 -86', 'F'], ['M -200 -20 L -150 -20 M 120 -40 L 180 -40 M 0 -110 L 50 -110', 'F', { g: 1 }]);
-  const hull = 'M -150 0 C -100 14 100 14 150 -4 C 162 -16 166 -32 160 -48 L 156 -40 C 150 -24 130 -12 100 -8 C 40 -4 -100 -4 -146 -10 C -160 -14 -166 -24 -164 -34 L -158 -32 C -158 -20 -154 -8 -150 0 Z';
-  const g = [[hull, 'M', { part: 'gondola', g: 2 }], ['M 160 -48 L 172 -50 M 158 -40 L 170 -40 M 156 -32 L 168 -30', 'F', { part: 'gondola', g: 2 }],
-    ['M -104 -8 L -108 -34 M -108 -34 L -60 26', 'F', { part: 'gondola', g: 2 }], ['M -20 -6 L -20 -22 L 30 -22 L 30 -6', 'F', { part: 'gondola', g: 2 }]];
+  for (const s of [-1, 1]) for (let i = 0; i < 5; i++) {                         // shop arches up each ramp
+    const x0 = s * (226 - i * 40), x1 = x0 + s * 20, yb = deckY((x0 + x1) / 2) - 2, yt = yb - 22;
+    strokes.push([arch(Math.min(x0, x1), Math.max(x0, x1), f(yb), f(yt)), 'F', { speed: 4 }]);
+  }
+  for (let x = -236; x <= 236; x += 16) { if (Math.abs(x) < 44) continue; const y = deckY(x); strokes.push([`M ${x} ${f(y)} L ${x} ${f(y + 9)}`, 'F', { speed: 6 }]); }
+  const hull = 'M -96 4 C -60 14 40 14 80 0 C 88 -8 90 -18 86 -28 L 82 -20 C 76 -8 56 -2 30 0 C -10 2 -60 2 -92 -2 C -100 -6 -104 -12 -102 -20 L -98 -18 C -98 -10 -98 -2 -96 4 Z';
+  const g = [[hull, 'S', { part: 'gondola', g: 2 }], ['M 86 -28 L 96 -30 M 84 -22 L 94 -21', 'F', { part: 'gondola', g: 2 }],
+    ['M -66 -2 L -64 -40 M -70 -26 L -40 30', 'F', { part: 'gondola', g: 2 }], [circ(-64, -46, 5), 'F', { part: 'gondola', g: 2 }]];
+  strokes.push([wave(-260, 24, 2, 9), 'F', { g: 1 }], [wave(170, 30, 2, 9), 'F', { g: 1 }], [wave(-40, 36, 2, 8), 'F', { g: 1 }]);
+  const bridgeBody = 'M -250 0 L -250 -50 L -40 -122 L 40 -122 L 250 -50 L 250 0 L 150 0 C 122 -112 -122 -112 -150 0 Z';
   L.venice = {
     strokes: [...strokes, ...g],
-    fills: [['M -282 10 L -24 -150 L 104 -150 L 282 10 Z', 'blue', { g: 1 }], [hull, 'ink', { part: 'gondola', g: 2 }]],
-    shade: [['M 282 -296 L 104 -232 L 104 -150 L 282 10 Z']],
-    parts: { gondola: (tl) => ({ rot: 0, x: 40 - 18 * Math.max(0, tl), y: -6 }) },
+    fills: [['M -282 0 L 282 0 L 282 44 L -282 44 Z', 'blue', { g: 1 }], [hull, 'ink', { part: 'gondola', g: 2 }],
+      [bridgeBody, 'sandT'], ['M -250 -50 L -250 -82 L -40 -154 L -40 -122 Z', 'redT'], ['M 250 -50 L 250 -82 L 40 -154 L 40 -122 Z', 'redT']],
+    shade: [['M 0 -122 L 250 -50 L 250 0 L 150 0 C 136 -56 70 -84 0 -84 Z']],
+    parts: { gondola: (tl) => ({ x: -40 + 22 * Math.max(0, tl), y: 0 }) },
   };
 }
 
 // ---------------------------------------------------------------- 罗马 · the Spanish Steps, Trinità dei Monti and the Barcaccia
+// The church on top (twin bell towers), the obelisk in front of it, and the stairway's butterfly shape: a wide lower
+// flight, two curving flights around the central terrace, a narrower upper flight. Pink azaleas along the balustrades.
 {
-  const outl = 'M -108 -250 C -150 -212 -116 -172 -168 -142 C -222 -112 -180 -62 -262 -10';
-  const steps = 'M -108 -250 C -150 -212 -116 -172 -168 -142 C -222 -112 -180 -62 -262 -10 L 262 -10 C 180 -62 222 -112 168 -142 C 116 -172 150 -212 108 -250 Z';
-  const strokes = [
-    ['M -282 -10 L 282 -10', 'M'], [outl, 'M'], [mirror(outl), 'M'], ['M -108 -250 L 108 -250', 'S'],
-    ['M -86 -250 L -86 -392 M -54 -392 L -54 -250 M 54 -250 L 54 -392 M 86 -392 L 86 -250', 'M'],
-    ['M -90 -392 C -88 -414 -52 -414 -50 -392 M 50 -392 C 52 -414 88 -414 90 -392', 'S'], ['M -70 -410 L -70 -424 M 70 -410 L 70 -424', 'F'], ['M -78 -360 l 0 -18 l 16 0 l 0 18 M 62 -360 l 0 -18 l 16 0 l 0 18', 'F'],
-    ['M -54 -326 L 54 -326 M -54 -326 L 0 -352 L 54 -326', 'S'], ['M -90 -392 L -50 -392 M 50 -392 L 90 -392', 'F'],
-    ['M -6 -250 L -6 -264 L 6 -264 L 6 -250 M -4 -264 L -2 -360 L 0 -370 L 2 -360 L 4 -264', 'S'],
-    ['M -30 -250 L -30 -290 Q -20 -302 -10 -290 M 30 -250 L 30 -290 Q 20 -302 10 -290', 'F'],
-  ];
-  for (const y of [-198, -140, -84]) strokes.push([`M -150 ${y} L 150 ${y}`.replace('-150', f(-150 - (y + 250) * 0.3)).replace(/L 150/, `L ${f(150 + (y + 250) * 0.3)}`), 'S']);
-  for (let y = -238; y > -260 + 250; y += 12) { if ([-198, -140, -84].some((v) => Math.abs(v - y) < 6)) continue; const w = 100 + (y + 250) * 0.6; strokes.push([`M ${f(-w)} ${y} L ${f(w)} ${y}`, 'F', { speed: 6 }]); }
-  const az = [[-134, -214, 9], [-122, -196, 8], [-130, -178, 9], [-162, -146, 10], [-186, -124, 9], [-192, -100, 10], [-206, -66, 11], [-230, -36, 11], [-104, -240, 8], [-150, -136, 8], [-214, -50, 9]];
-  const fills = [[steps, 'sand'], [rect(-86, -250, 86, -392), 'sandT']];
+  const balL = 'M -230 -8 C -200 -40 -176 -60 -150 -70 C -196 -96 -200 -132 -150 -150 C -136 -170 -122 -200 -112 -236';
+  const terrace = 'M -62 -78 C -96 -96 -96 -134 -56 -148 L 56 -148 C 96 -134 96 -96 62 -78 Z';
+  const strokes = [['M -282 0 L 282 0', 'M'], [balL, 'M'], [mirror(balL), 'M'], ['M -112 -236 L 112 -236', 'S'], [terrace, 'F', { alpha: 0.8 }]];
+  // half-width of the stairway at height y, read off the balustrade curve
+  const W_AT = [[-8, 230], [-40, 198], [-70, 150], [-96, 176], [-112, 186], [-130, 178], [-150, 150], [-190, 126], [-236, 112]];
+  const wAt = (y) => { for (let i = 1; i < W_AT.length; i++) { const [y0, w0] = W_AT[i - 1], [y1, w1] = W_AT[i]; if (y <= y0 && y >= y1) return w0 + (w1 - w0) * (y - y0) / (y1 - y0); } return 112; };
+  for (let y = -16; y > -232; y -= 11) {
+    const w = wAt(y) - 4;
+    if (y < -80 && y > -146) strokes.push([`M ${f(-w)} ${y} L -66 ${y} M 66 ${y} L ${f(w)} ${y}`, 'F', { speed: 6 }]);
+    else strokes.push([`M ${f(-w)} ${y} L ${f(w)} ${y}`, 'F', { speed: 6 }]);
+  }
+  // church: façade, two towers with cupolas, pediment, obelisk
+  strokes.push(['M -96 -236 L -96 -396 M -56 -396 L -56 -236 M 56 -236 L 56 -396 M 96 -396 L 96 -236', 'M'],
+    ['M -100 -396 C -96 -410 -56 -410 -52 -396 M 52 -396 C 56 -410 96 -410 100 -396', 'S'], ['M -76 -406 L -76 -424 M -82 -416 L -70 -416 M 76 -406 L 76 -424 M 70 -416 L 82 -416', 'F'],
+    ['M -56 -330 L 56 -330 M -60 -330 L 0 -360 L 60 -330', 'S'], ['M -100 -396 L -52 -396 M 52 -396 L 100 -396', 'F'],
+    ['M -84 -360 l 0 -20 l 16 0 l 0 20 M 68 -360 l 0 -20 l 16 0 l 0 20', 'F'], ['M -20 -236 L -20 -290 Q 0 -308 20 -290 L 20 -236', 'F'],
+    ['M -10 -236 L -10 -250 L 10 -250 L 10 -236 M -5 -250 L -3 -356 L 0 -368 L 3 -356 L 5 -250', 'S']);
+  // the Barcaccia: a half-sunken boat fountain at the foot
+  const boat = 'M -70 0 C -40 18 40 18 70 0 C 50 -14 -50 -14 -70 0 Z';
+  strokes.push([boat, 'S', { g: 2 }], ['M -60 -2 L -80 -16 M 60 -2 L 80 -16 M 0 -8 L 0 -26 M -6 -26 C -14 -36 -2 -44 0 -32 C 2 -44 14 -36 6 -26', 'F', { g: 2 }]);
+  const stairs = 'M -230 -8 C -200 -40 -176 -60 -150 -70 C -196 -96 -200 -132 -150 -150 C -136 -170 -122 -200 -112 -236 L 112 -236 C 122 -200 136 -170 150 -150 C 200 -132 196 -96 150 -70 C 176 -60 200 -40 230 -8 Z';
+  const fills = [[stairs, 'sandT'], [rect(-96, -236, 96, -396), 'sand'], [boat, 'paper', { g: 2 }]];
+  const az = [[-214, -18, 11], [-188, -42, 10], [-160, -64, 10], [-176, -96, 9], [-182, -124, 9], [-150, -150, 9], [-132, -186, 8], [-120, -214, 8], [-76, -96, 9], [-70, -128, 9]];
   for (const [x, y, r] of az) for (const s of [1, -1]) {
     const d = `M ${f(s * x - r)} ${y} C ${f(s * x - r)} ${f(y - r * 0.9)} ${f(s * x + r)} ${f(y - r * 0.9)} ${f(s * x + r)} ${y} C ${f(s * x + r * 0.6)} ${f(y + r * 0.5)} ${f(s * x - r * 0.6)} ${f(y + r * 0.5)} ${f(s * x - r)} ${y} Z`;
     fills.push([d, 'redT', { g: 1 }]); strokes.push([d, 'F', { g: 1, speed: 3 }]);
   }
-  const boat = 'M -74 0 C -40 22 40 22 74 0 C 52 -12 -52 -12 -74 0 Z';
-  strokes.push([boat, 'S', { g: 2 }], ['M -40 -4 C -20 6 20 6 40 -4 M -8 -2 L -8 -24 L 8 -24 L 8 -2 M -60 -4 L -82 -14 M 60 -4 L 82 -14', 'F', { g: 2 }]);
-  fills.push([boat, 'paper', { g: 2 }]);
-  L.rome = { strokes, fills, shade: [[steps.replace(/^M -108 -250 .*? L 262 -10/, 'M 0 -250 L 0 -10 L 262 -10')]], ripple: [0, 2, 0.6] };
+  L.rome = { strokes, fills, shade: [[rect(56, -236, 96, -396)], ['M 0 -236 L 112 -236 C 122 -200 136 -170 150 -150 L 0 -150 Z']], ripple: [0, 4, 0.5] };
 }
 
 // ---------------------------------------------------------------- 巴塞罗那 · Sagrada Família, the four Nativity bell towers
@@ -447,33 +473,43 @@ export const L = {};
   L.sagrada = { strokes, fills, shade };
 }
 
-// ---------------------------------------------------------------- 格拉纳达 · the Alhambra's Court of the Lions
+// ---------------------------------------------------------------- 格拉纳达 · the Alhambra on its hill, the Sierra Nevada behind
+// The classic view from the Albaicín: a long line of crenellated walls and square towers (the Comares tower the largest),
+// cypresses on the slope, the snow-capped Sierra Nevada beyond.
 {
-  const strokes = [['M -282 0 L 282 0', 'M'], ['M -270 -200 L 270 -200', 'M'], ['M -270 -40 L 270 -40', 'S'], ['M -270 -200 L -270 -40 M 270 -200 L 270 -40', 'S'],
-    ['M -100 -214 L 0 -306 L 100 -214', 'M'], ['M -100 -214 L 100 -214', 'S'], ['M -270 -170 L 270 -170', 'F'], ['M -270 -214 L -100 -214 M 100 -214 L 270 -214', 'F']];
-  const cols = [-246, -214, -182, -150, -126, -88, 88, 126, 150, 182, 214, 246];
-  for (const x of cols) strokes.push([`M ${x - 2} -40 L ${x - 2} -142 M ${x + 2} -40 L ${x + 2} -142 M ${x - 6} -142 L ${x + 6} -142`, 'F', { speed: 3 }]);
-  for (let i = 0; i < cols.length - 1; i++) {
-    const a = cols[i] + 4, b = cols[i + 1] - 4;
-    if (b - a > 120) continue;
-    const m = (a + b) / 2, r = (b - a) / 2;
-    strokes.push([`M ${a} -142 L ${a} -150 C ${a} ${f(-150 - r * 1.2)} ${b} ${f(-150 - r * 1.2)} ${b} -150 L ${b} -142`, 'F', { speed: 3 }]);
-    strokes.push([`M ${f(m - r * 0.6)} -158 q ${f(r * 0.3)} -8 ${f(r * 0.6)} 0 q ${f(r * 0.3)} -8 ${f(r * 0.6)} 0`, 'F', { speed: 5 }]);
+  const strokes = [];
+  const sierra = 'M -236 -196 L -180 -240 L -140 -226 L -96 -290 L -50 -262 L 0 -312 L 56 -272 L 110 -300 L 160 -256 L 200 -270 L 230 -236';
+  const snow = 'M -112 -272 L -96 -290 L -80 -276 L -88 -270 L -96 -278 Z M -16 -296 L 0 -312 L 18 -294 L 6 -288 L 0 -296 Z M 94 -284 L 110 -300 L 128 -286 L 116 -280 L 110 -288 Z';
+  strokes.push([sierra, 'S', { alpha: 0.8 }], [snow, 'F']);
+  const hill = 'M -282 0 C -230 -40 -170 -76 -110 -96 L 190 -104 C 232 -90 262 -50 282 0';
+  strokes.push(['M -282 0 L 282 0', 'M'], [hill, 'M']);
+  // walls and towers: [x0, x1, top]
+  const towers = [[-210, -176, -176], [-128, -64, -232], [-6, 24, -178], [80, 106, -184], [168, 196, -170]];
+  const wallTop = -150;
+  strokes.push([`M -236 -110 L -236 ${wallTop} L 230 ${wallTop} L 230 -104`, 'M']);
+  let cren = `M -236 ${wallTop}`;
+  for (let x = -236; x < 230; x += 12) cren += ` L ${x} ${wallTop - 7} L ${x + 6} ${wallTop - 7} L ${x + 6} ${wallTop} L ${x + 12} ${wallTop}`;
+  strokes.push([cren, 'F', { speed: 5 }]);
+  const fills = [[`${sierra} L 230 -150 L -236 -150 Z`, 'blueT', { g: 0 }]];
+  const body = [];
+  for (const [x0, x1, top] of towers) {
+    strokes.push([`M ${x0} ${wallTop} L ${x0} ${top} L ${x1} ${top} L ${x1} ${wallTop}`, 'M']);
+    let c = `M ${x0} ${top}`;
+    for (let x = x0; x < x1; x += 8) c += ` L ${x} ${top - 6} L ${x + 4} ${top - 6} L ${x + 4} ${top} L ${x + 8} ${top}`;
+    strokes.push([c, 'F', { speed: 5 }]);
+    const wx = (x0 + x1) / 2;
+    strokes.push([`M ${f(wx - 4)} ${f(top + 26)} l 0 -12 l 8 0 l 0 12`, 'F', { speed: 5 }]);
+    body.push(rect(x0, wallTop, x1, top));
   }
-  strokes.push(['M -84 -40 L -84 -160 C -60 -196 60 -196 84 -160 L 84 -40', 'S']);
-  // the fountain: dodecagonal basin on twelve lions
-  const basin = 'M -64 -50 C -64 -36 64 -36 64 -50 C 64 -64 -64 -64 -64 -50 Z';
-  const fl = [[basin, 'S', { g: 1 }], ['M -24 -88 C -24 -80 24 -80 24 -88 Z M 0 -80 L 0 -58 M 0 -88 L 0 -100', 'F', { g: 1 }]];
-  for (let i = 0; i < 6; i++) { const x = -54 + i * 21.6; fl.push([`M ${f(x - 8)} -10 L ${f(x - 8)} -30 C ${f(x - 8)} -42 ${f(x + 8)} -42 ${f(x + 8)} -30 L ${f(x + 8)} -10`, 'F', { g: 1 }]); }
-  fl.push(['M -80 -10 L 80 -10', 'S', { g: 1 }]);
-  const hedgeL = 'M -282 0 C -280 -36 -220 -46 -190 -30 C -170 -44 -130 -40 -126 0 Z';
-  L.alhambra = {
-    strokes: [...strokes, ...fl, [hedgeL, 'S', { g: 1 }], [mirror(hedgeL), 'S', { g: 1 }]],
-    fills: [[rect(-270, -170, 270, -214), 'sand'], ['M -100 -214 L 0 -306 L 100 -214 Z', 'sand'], [rect(-270, -40, 270, 0), 'sandT'],
-      ['M -80 -10 L 80 -10 L 64 -50 C 64 -64 -64 -64 -64 -50 L -80 -10 Z', 'paper', { g: 1 }], [basin, 'sand', { g: 1 }],
-      [hedgeL, 'green', { g: 1 }], [mirror(hedgeL), 'green', { g: 1 }]],
-    shade: [['M 0 -306 L 100 -214 L 0 -214 Z'], [rect(150, -170, 270, -214)]],
-  };
+  strokes.push(['M -110 -96 L -110 -150 M 190 -104 L 190 -150', 'F']);
+  fills.push([[`M -236 -110 L -236 ${wallTop} L 230 ${wallTop} L 230 -104 L 190 -104 L -110 -96 Z`], 'sand'], ...body.map((d) => [d, 'sand']),
+    [`${hill} L 282 0 L -282 0 Z`, 'greenT', { g: 1 }]);
+  // cypresses on the slope, in front
+  const cyp = (x, yb, h) => `M ${x} ${yb} C ${x - 9} ${f(yb - h * 0.35)} ${x - 7} ${f(yb - h * 0.8)} ${x} ${f(yb - h)} C ${x + 7} ${f(yb - h * 0.8)} ${x + 9} ${f(yb - h * 0.35)} ${x} ${yb} Z`;
+  for (const [x, yb, h] of [[-190, -40, 92], [-166, -48, 110], [-40, -74, 86], [120, -60, 104], [146, -54, 84], [236, -24, 80]]) {
+    const d = cyp(x, yb, h); strokes.push([d, 'S', { g: 1 }]); fills.push([d, 'green', { g: 1 }]);
+  }
+  L.alhambra = { strokes, fills, shade: [[rect(-96, wallTop, -64, -232)], [rect(200, -104, 230, wallTop)]] };
 }
 
 // ---------------------------------------------------------------- 杜布罗夫尼克 · city walls, red roofs, Minčeta tower, the sea
@@ -545,6 +581,58 @@ export const L = {};
   };
 }
 
+// ---------------------------------------------------------------- 罗卡角 · Cabo da Roca: the lighthouse, the monument, the cliff
+// Westernmost point of mainland Europe: the square lighthouse tower (≈ 22 m) with its red lantern roof beside the keeper's
+// house, the stone column with the cross, and the cliff dropping to the Atlantic.
+{
+  const cliff = 'M -282 -150 L 46 -150 C 62 -142 70 -124 78 -104 L 88 -76 L 104 -52 L 120 -26 L 138 -8 L 156 0';
+  const strokes = [['M -282 0 L 282 0', 'M'], [cliff, 'M'], ['M 92 -64 L 282 -64', 'S'], ['M -282 -150 L -282 0', 'F']];
+  strokes.push(['M 70 -120 L 60 -90 M 84 -84 L 72 -60 M 100 -48 L 92 -30', 'F']);
+  // keeper's house and the tower
+  strokes.push(['M -232 -150 L -232 -192 L -100 -192 L -100 -150 M -238 -192 L -226 -206 L -106 -206 L -94 -192', 'S'],
+    ['M -178 -150 L -178 -300 M -146 -300 L -146 -150', 'M'], ['M -184 -300 L -140 -300 M -180 -312 L -144 -312', 'S'],
+    ['M -174 -312 L -174 -336 M -150 -336 L -150 -312', 'S'], ['M -180 -336 C -180 -358 -144 -358 -144 -336 Z', 'S'], ['M -162 -352 L -162 -366', 'F']);
+  for (const y of [-180, -220, -260]) strokes.push([`M -166 ${y} l 0 -14 l 8 0 l 0 14`, 'F', { speed: 5 }]);
+  for (const x of [-220, -196, -124]) strokes.push([`M ${x} -160 l 0 -18 l 10 0 l 0 18`, 'F', { speed: 5 }]);
+  // the monument: column on a plinth, the cross on top
+  strokes.push(['M -6 -150 L -6 -160 L 26 -160 L 26 -150 M 2 -160 L 2 -232 M 18 -232 L 18 -160', 'S'], ['M 10 -232 L 10 -262 M 0 -252 L 20 -252', 'S']);
+  strokes.push([wave(150, -40, 2, 10), 'F', { g: 1 }], [wave(200, -20, 2, 10), 'F', { g: 1 }], [wave(170, -8, 2, 8), 'F', { g: 1 }]);
+  const sea = 'M 92 -64 L 282 -64 L 282 0 L 156 0 L 138 -8 L 120 -26 L 104 -52 Z';
+  L.roca = {
+    strokes,
+    fills: [[sea, 'blue', { g: 1 }], [`${cliff} L 156 0 L -282 0 L -282 -150 Z`, 'sandT'], ['M -282 -150 L 46 -150 L 40 -136 L -282 -136 Z', 'greenT'],
+      ['M -180 -336 C -180 -358 -144 -358 -144 -336 Z', 'red'], [rect(-174, -312, -150, -336), 'red']],
+    shade: [['M 46 -150 C 62 -142 70 -124 78 -104 L 88 -76 L 104 -52 L 120 -26 L 138 -8 L 156 0 L 60 0 Z'], [rect(-158, -150, -146, -300)]],
+    ripple: [210, -30, 0.55],
+  };
+}
+
+// ---------------------------------------------------------------- 萨拉热窝 · the Sebilj fountain in Baščaršija, a minaret behind
+// The wooden Ottoman-style kiosk fountain (≈ 6 m) on its stone base: arched panels, wide eaves, the green dome and lantern;
+// the slender minaret of the Gazi Husrev-beg mosque behind; pigeons on the square.
+{
+  const strokes = [['M -282 0 L 282 0', 'M'], ['M -120 0 L -110 -20 L 110 -20 L 120 0', 'S']];
+  strokes.push(['M -74 -20 L -74 -140 M 74 -140 L 74 -20', 'M'], ['M -118 -140 L 118 -140 L 92 -154 L -92 -154 Z', 'M']);
+  const dome = 'M -82 -154 C -82 -232 82 -232 82 -154 Z';
+  strokes.push([dome, 'M'], ['M -10 -212 L -10 -232 L 10 -232 L 10 -212 M -14 -232 C -14 -246 14 -246 14 -232 M 0 -244 L 0 -262', 'S'],
+    ['M -6 -268 C -2 -262 4 -262 6 -268 C 2 -264 -2 -264 -6 -268', 'F']);
+  for (const [x0, x1] of [[-66, -26], [-18, 18], [26, 66]]) {
+    strokes.push([arch(x0, x1, -36, -128), 'S']);
+    strokes.push([`M ${x0 + 6} -60 L ${x1 - 6} -60 M ${(x0 + x1) / 2} -40 L ${(x0 + x1) / 2} -110`, 'F', { speed: 4 }]);
+  }
+  // the minaret
+  strokes.push(['M 178 0 L 178 -290 M 198 -290 L 198 0', 'S'], ['M 172 -236 L 204 -236 L 200 -246 L 176 -246 Z', 'F'],
+    ['M 176 -290 L 188 -350 L 200 -290 Z', 'S'], ['M 188 -350 L 188 -366', 'F'], ['M 150 0 L 150 -60 L 230 -60 L 230 0', 'F']);
+  // hills behind, pigeons
+  strokes.push(['M -282 -170 C -230 -210 -170 -220 -120 -196 M 120 -190 C 160 -214 230 -220 282 -186', 'F', { alpha: 0.7 }]);
+  for (const [x, y] of [[-200, -6], [-170, -10], [-230, -12], [150, -8], [240, -10]]) strokes.push([`M ${x - 8} ${y} C ${x - 4} ${y - 8} ${x + 6} ${y - 8} ${x + 8} ${y - 2} L ${x + 12} ${y - 6}`, 'F', { g: 1 }]);
+  L.sarajevo = {
+    strokes,
+    fills: [[dome, 'green'], ['M -118 -140 L 118 -140 L 92 -154 L -92 -154 Z', 'greenT'], [rect(-74, -20, 74, -140), 'sand'],
+      ['M -120 0 L -110 -20 L 110 -20 L 120 0 Z', 'sandT']],
+    shade: [[rect(30, -20, 74, -140)]],
+  };
+}
 // ---------------------------------------------------------------- 奥斯维辛 · Birkenau: the tracks into the gatehouse (grey pencil only)
 {
   const strokes = [
