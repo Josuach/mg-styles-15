@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>欧洲手札 — cards</title>
+<link rel="stylesheet" href="/assets/fonts/europe/fonts.css">
+<!--
+  Still cards built from the film's final map (cards/map_clean@2x.png, rendered with ?clean so it has no end card).
+  ?card=portrait  → 3:4 profile card (1080×1440)      ?card=landscape → 4:3 share card (1440×1080)
+  Render: node harness/render.mjs demos/europe-notebook --page cards.html --stills 0 --w 1080 --h 1440 --scale 2 --query card=portrait
+-->
+<style>
+  :root { --paper: #f4e9d0; --ink: #2a211c; --shadow: #cfae8c; --line: #9c7a5c; --pencil: #6b5446; }
+  html, body { margin: 0; background: var(--paper); overflow: hidden; }
+  .card { position: relative; overflow: hidden; background: var(--paper); }
+  .paper { position: absolute; inset: 0; background: url(/demos/05-cel-boil/assets/paper_base.jpg) center / cover; opacity: .55; }
+  .tooth { position: absolute; inset: 0; background: url(/demos/05-cel-boil/assets/paper_tooth.png) -120px -90px; mix-blend-mode: multiply; opacity: .28; }
+  .map { position: absolute; background-image: url(cards/map_clean@2x.png); background-repeat: no-repeat; }
+  .cn { font-family: 'LXGW Marker Gothic'; color: var(--ink); text-shadow: .04em .04em 0 var(--shadow); }
+  .latin { font-family: 'Caveat'; font-weight: 600; color: var(--ink); letter-spacing: .32em; }
+  .rule { height: 5px; border-radius: 3px; background: var(--line); transform: rotate(-.4deg); }
+  .dates { font-family: 'LXGW Marker Gothic'; color: var(--ink); opacity: .85; }
+
+  /* ---------- 3:4 profile card ---------- */
+  .portrait { width: 1080px; height: 1440px; }
+  .portrait .map { left: 0; top: 400px; width: 1080px; height: 864px;
+    /* the route's part of the 1920×1080 frame: x 0–1200, y 40–1000 (5:4) */
+    background-size: calc(1080px * 1920 / 1200) auto; background-position: 0 calc(-40px * 1080 / 1200);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 70px, #000 calc(100% - 70px), transparent 100%),
+                        linear-gradient(to right, #000 0, #000 calc(100% - 50px), transparent 100%);
+    -webkit-mask-composite: source-in; mask-composite: intersect; }
+  .portrait .title { position: absolute; left: 0; right: 0; top: 130px; text-align: center; font-size: 140px; letter-spacing: .08em; }
+  .portrait .rule1 { position: absolute; left: 320px; width: 440px; top: 286px; }
+  .portrait .sub { position: absolute; left: 0; right: 0; top: 302px; text-align: center; font-size: 36px; }
+  .portrait .dates { position: absolute; left: 0; right: 0; top: 1300px; text-align: center; font-size: 42px; }
+
+  /* ---------- 4:3 share card ---------- */
+  .landscape { width: 1440px; height: 1080px; }
+  .landscape .map { left: 0; top: 0; width: 1440px; height: 1080px;
+    /* frame x 0–1440, y 0–1080 at 1:1 */
+    background-size: 1920px 1080px; background-position: 0 0; }
+  .landscape .patch { position: absolute; border-radius: 50%; filter: blur(28px); background: rgba(244,233,208,.88); }
+  .landscape .p1 { right: 30px; top: 130px; width: 560px; height: 300px; }
+  .landscape .title { position: absolute; right: 80px; top: 140px; text-align: right; font-size: 104px; letter-spacing: .06em; }
+  .landscape .rule1 { position: absolute; right: 86px; width: 340px; top: 266px; }
+  .landscape .sub { position: absolute; right: 80px; top: 282px; text-align: right; font-size: 28px; }
+  .landscape .dates { position: absolute; right: 80px; top: 340px; text-align: right; font-size: 36px; }
+</style>
+</head>
+<body>
+<div id="card" class="card"></div>
+<script>
+  const kind = new URLSearchParams(location.search).get('card') || 'portrait';
+  const W = kind === 'portrait' ? 1080 : 1440, H = kind === 'portrait' ? 1440 : 1080;
+  window.DEMO = { width: W, height: H, fps: 24, duration: 1 };
+  const el = document.getElementById('card');
+  el.className = 'card ' + kind;
+  el.innerHTML = kind === 'portrait'
+    ? `<div class="paper"></div><div class="map"></div>
+       <div class="cn title">欧洲手札</div><div class="rule rule1"></div><div class="latin sub">DRAWN ACROSS EUROPE</div>
+       <div class="dates">2022.10 — 2026.01</div>
+       <div class="tooth"></div>`
+    : `<div class="paper"></div><div class="map"></div><div class="patch p1"></div>
+       <div class="cn title">欧洲手札</div><div class="rule rule1"></div><div class="latin sub">DRAWN ACROSS EUROPE</div>
+       <div class="dates">2022.10 — 2026.01</div>
+       <div class="tooth"></div>`;
+  window.renderAt = async () => {};
+  const img = new Image(); img.src = 'cards/map_clean@2x.png';
+  Promise.all([img.decode(), document.fonts.load('132px "LXGW Marker Gothic"', '欧洲手札'), document.fonts.load('600 34px Caveat', 'DRAWN')])
+    .then(() => document.fonts.ready).then(() => { window.__ready = true; });
+</script>
+</body>
+</html>

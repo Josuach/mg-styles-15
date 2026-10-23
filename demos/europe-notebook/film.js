@@ -53,6 +53,7 @@ const END_CARD = {
   i: ['29 国 81 站，', '未完待续'],
   j: ['81 站，', '还在继续'],
 }[new URLSearchParams(location.search).get('ec') || 'c'];            // chosen: 29 个国家 · 81 处风景
+const CLEAN = new URLSearchParams(location.search).has('clean');   // ?clean: no end card (for still cards built from the map)
 const DOT_INK = { sepia: '#8f7663', reddash: '#c4604a', ink: '#1c1613' }[RSTYLE];
 const CN = '"LXGW Marker Gothic"', LAT = '"Caveat"';
 const PEN = { M: 4.6, S: 3.2, F: 1.9 }, SPEED = { M: 1, S: 1.5, F: 2.4 };
@@ -788,7 +789,7 @@ window.renderAt = async (t) => {
 
   // ---- end card: hand-lettered, inks in and holds still ----
   const ec = settle(tq, T.card, 0.4);
-  if (ec.on) {
+  if (ec.on && !CLEAN) {
     const cx = CARD[0], cy = CARD[1];
     const parts = END_CARD;
     ctx.font = `400 84px ${CN}`;
